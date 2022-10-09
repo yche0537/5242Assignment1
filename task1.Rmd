@@ -1,6 +1,6 @@
 ---
-title: "ETC5242-group_assignment"
-author: "wawnxin chen"
+title: "Task1"
+author: "Wawnxin Chen, Yunzhi Chen"
 date: "2022-10-08"
 output: html_document
 ---
