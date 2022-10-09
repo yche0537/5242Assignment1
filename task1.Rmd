@@ -1,0 +1,89 @@
+---
+title: "ETC5242-group_assignment"
+author: "wawnxin chen"
+date: "2022-10-08"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+```
+
+```{r include=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(broom)
+CIF <- read.csv(here::here("data/CIF.csv"))
+
+CIF_task1 <- CIF %>%
+  select(Claim.Amount, Monthly.Premium, Age, Gender,Fraud)%>%
+  mutate(Claim.Amount = as.numeric(gsub(",", "", `Claim.Amount`)))
+```
+
+# Analysis
+
+- Based on the results of the lm function for the claim and monthly premium relationship, it can be concluded that the slope of 55.47 is much greater than 1, indicating that there is a relationship between them.
+Then combined with the visualization image of the lm model drawn by ggplot, we can see that their relationship is slightly positive.
+
+```{r ,fig.width=6,fig.height=4}
+lm(Claim.Amount ~ Monthly.Premium, data = CIF_task1)
+p1 <- ggplot(data = CIF_task1,
+       aes(x = Monthly.Premium,
+           y = Claim.Amount))+
+  geom_point()+
+  geom_smooth(method = lm, se = FALSE)+
+  ggtitle("Relationship between claim amount and monthly premium")
+
+p1
+```
+
+
+```{r}
+task1_group <- CIF_task1 %>% 
+  filter(Age < 27 )%>%
+  group_by(Gender, Fraud) %>% 
+  tally() %>% 
+  ungroup() %>%
+  pivot_wider(names_from = Fraud, values_from = n)%>% 
+  mutate(total = `0` + `1`) %>% 
+  mutate(prop = round(`1`/total, digits=3)) %>%
+  select(Gender, `1`, `0`, total, prop)
+
+task1_group <- task1_group %>% 
+  arrange(desc(row_number())) 
+
+task1_group %>% 
+  kable() %>% 
+  kable_styling()
+```
+
+- In this case, it can be calculated from the R Code that young drivers (less than 27 years old), a higher proportion of males commit fraud than females (0.377 vs. 0.338, a difference of 0.039), but it is unclear whether this finding whether it is convincing evidence that males are more likely to commit fraud than females among young drivers younger than 27 years old, or whether the results are likely to have occurred by chance and the probability of actual true fraud is the same regardless of gender.
+So we chose a one-sided hypothesis test. h0 : pM - pF = 0 vs. h1 : pM - pF > 0, where pM and pF denote the proportion of fraud among drivers younger than 27 years old, male and female, respectively. According to the CLT test, it can be concluded that the value of p is 0.0125 is much less than 0.05, so H0 is rejected and H1 is accepted. Thus, it is proved that the rate of fraud among young drivers under 27 years old is indeed higher for males than for females.
+
+```{r}
+test_x <- as.matrix(task1_group %>%
+select(`1`, `0`))
+
+CLTtest <- prop.test(test_x, alternative = "greater")
+tidy(CLTtest) %>%
+kable() %>%
+kable_styling()
+```
+
+# summary
+
+This report calculates the relationship between claims and monthly premiums by using the R Code, where the lm function is used. By analyzing the results of the calculation, it can be concluded that there is a relationship between them and that the relationship is slightly positive.
+
+In addition, the difference between the percentage of fraud committed by males and females was calculated to be 0.039 for younger drivers (less than 27 years old) using the R code.
+To further verify the conclusion that the rate of fraud is indeed higher among young drivers under 27 years old than among females, a one-sided hypothesis test was chosen to be used, h0 : pM - pF = 0 vs. h1 : pM - pF > 0, where pM and pF denote the proportion of fraud among male and female drivers under 27 years old, respectively. Based on the CLT test, it can be concluded that the value of p is 0.0125 much less than 0.05, so H0 is rejected and H1 is accepted. therefore, it is proven that the fraud rate among young drivers under 27 years old is indeed higher among males than females.
+
+
+
+
+
+
