@@ -1,0 +1,123 @@
+---
+title: "task4"
+author: "Chen Yunzhi"
+date: "2022-10-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# data
+library(tidyverse)
+library(ggplot2)
+library(kableExtra)
+library(broom)
+CIF <- read.csv(here::here("data/CIF.csv"))
+task4 <- CIF %>%
+  select(Age, Gender, Fraud) %>%
+  filter(Age < 27)
+```
+
+```{r}
+n_male <- length(task4$Fraud[task4$Gender == "M"])
+n_female <- length(task4$Fraud[task4$Gender == "F"])
+
+beta_binomial <- function(n, x, alpha = 1, beta = 1) {
+  atil <- alpha + x
+  btil <- beta + n - x
+  cf <- n / (alpha + beta + n)
+  out <- list(alpha_tilde = atil, beta_tilde = btil, credibility_factor = cf)
+  return(out)
+}
+
+# male
+alpha_male <- 50
+beta_male <- 70
+
+CI_male <- qbeta(c(0.025, 0.975), alpha_male, beta_male)
+CI_male
+
+
+# female
+alpha_female <- 5
+beta_female <- 16
+
+CI_female <- qbeta(c(0.025, 0.975), alpha_female, beta_female)
+CI_female
+```
+
+40% is within the beta_male - alpha_male
+
+20% is also within the beta_female - alpha_female, but the gap is bigger than male' proportion.
+
+
+
+```{r}
+# visualise the posterior
+post_male_parameter <- beta_binomial(n = n_male, x = 578, alpha_male, beta_male) # 578 = task1_group $`1`(gender = M)
+
+cbbPal <- c(
+  black = "#000000", orange = "#E69F00",
+  ltblue = "#56B4E9", "#009E73", green = "#009E73",
+  yellow = "#F0E442", blue = "#0072B2", red = "#D55E00",
+  pink = "#CC79A7"
+)
+cbbP <- cbbPal[c("orange", "blue", "pink")] # choose colours for p1
+
+thetaxx <- seq(0.001, 0.999, length.out = 100)
+post_male <- dbeta(thetaxx, post_male_parameter$alpha_tilde, post_male_parameter$beta_tilde)
+df <- tibble(theta = thetaxx, `posterior pdf` = post_male)
+df_longer <- df %>%
+  pivot_longer(-theta,
+    names_to = "distribution",
+    values_to = "density"
+  )
+p1 <- df_longer %>%
+  ggplot(aes(
+    x = theta, y = density, colour = distribution,
+    fill = distribution
+  )) +
+  geom_line() +
+  scale_fill_manual(values = cbbP) +
+  theme_bw()
+p1
+```
+
+
+```{r}
+# difference
+R <- 10000
+set.seed(20208)
+post_female_parameter <- beta_binomial(n = n_female, x = 569, alpha_female, beta_female) # 569 = task1_group $`1`(gender = F)
+
+male <- rbeta(R, post_male_parameter$alpha_tilde, post_male_parameter$beta_tilde)
+female <- rbeta(R, post_female_parameter$alpha_tilde, post_female_parameter$beta_tilde)
+Diff <- male - female
+ds <- tibble(Delta = Diff)
+ds %>%
+  ggplot(aes(x = Delta, y = ..density..)) +
+  geom_histogram(
+    colour = "blue",
+    fill = "blue", alpha = 0.4, bins = 100
+  ) +
+  geom_vline(xintercept = c(
+    0.1,
+    -0.1
+  ), colour = "red") +
+  geom_density(
+    colour = "blue",
+    fill = "blue", alpha = 0.4
+  ) +
+  theme_bw() +
+  ggtitle(expression(paste(
+    "Simulated posterior pdf of ",
+    Delta
+  )))
+
+indic <- rep(0, R)
+indic[abs(Diff) < 0.1] <- 1
+diffeffective <- mean(indic)
+```
